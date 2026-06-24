@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบตรวจสอบรายชื่ออาสาสมัคร - วัดหมอนไม้</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Sarabun', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen flex flex-col items-center justify-center p-4">
+
+    <div class="w-full max-w-md bg-white rounded-3xl shadow-lg border-t-4 border-blue-800 flex flex-col justify-between min-h-[600px] overflow-hidden">
+        
+        <!-- ส่วนหัวเว็บ -->
+        <div class="p-6 text-center">
+            <img src="https://placehold.co/100x120/0033aa/fff?text=RESCUE" alt="Logo" class="mx-auto w-24 h-auto mb-4 object-contain">
+            <h1 class="text-xl font-bold text-gray-800 leading-tight">ระบบตรวจสอบรายชื่ออาสาสมัคร</h1>
+            <p class="text-blue-800 font-semibold mt-1 text-sm">สมาคมกู้ภัยวัดหมอนไม้</p>
+        </div>
+
+        <!-- พื้นที่แสดงข้อมูลตรงกลาง -->
+        <div class="flex-grow px-6 py-4 bg-slate-50/50 border-t border-gray-100">
+            
+            <!-- [หน้า 1]: หน้าค้นหาข้อมูล -->
+            <div id="searchSection" class="space-y-4 pt-4">
+                <input type="text" id="searchInput" placeholder="กรอกชื่อ, นามสกุล หรือนามเรียกขาน..." 
+                       class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600 text-gray-700 bg-white shadow-inner">
+                
+                <button onclick="searchVolunteer()" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-medium py-3 px-4 rounded-xl transition duration-200 flex items-center justify-center gap-2 cursor-pointer shadow-md">
+                    <svg xmlns="http://www.w3.org/2000/xl" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.604 10.604Z" />
+                    </svg>
+                    ค้นหา
+                </button>
+                <p id="errorMsg" class="text-red-500 text-sm text-center hidden">❌ ไม่พบข้อมูลอาสาสมัครคนนี้</p>
+                <p id="loadingMsg" class="text-blue-500 text-sm text-center hidden">🔄 กำลังโหลดฐานข้อมูล กรุณารอสักครู่...</p>
+            </div>
+
+            <!-- [หน้า 2]: หน้าแสดงรายละเอียดโปรไฟล์ -->
+            <div id="profileSection" class="hidden text-center space-y-4">
+                <button onclick="backToSearch()" class="text-xs text-blue-600 hover:underline flex items-center gap-1 mb-2 cursor-pointer">
+                    ⬅️ ค้นหาใหม่
+                </button>
+
+                <img id="volImg" src="" alt="Volunteer" class="mx-auto w-32 h-40 object-cover rounded-xl shadow-md border border-gray-200">
+                
+                <h2 id="volName" class="text-xl font-bold text-gray-800 mt-2"></h2>
+                <span id="volId" class="inline-block bg-blue-100 text-blue-800 text-xs font-semibold px-4 py-1 rounded-full"></span>
+
+                <hr class="border-gray-200 my-2">
+
+                <div class="text-left space-y-3 text-sm px-2">
+                    <div class="flex justify-between border-b border-gray-100 pb-2">
+                        <span class="text-gray-500">จุดบริการ:</span>
+                        <span id="volLocation" class="font-semibold text-gray-800"></span>
+                    </div>
+                    <div class="flex justify-between border-b border-gray-100 pb-2">
+                        <span class="text-gray-500">ตำแหน่ง:</span>
+                        <span id="volRole" class="font-semibold text-gray-800"></span>
+                    </div>
+                    <div class="flex justify-between border-b border-gray-100 pb-2">
+                        <span class="text-gray-500">วันหมดอายุบัตร:</span>
+                        <span id="volExpire" class="font-semibold text-blue-600"></span>
+                    </div>
+                    <div class="flex justify-between pb-1">
+                        <span class="text-gray-500">สถานะการต่ออายุ:</span>
+                        <span id="volRenewStatus" class="font-bold text-green-600"></span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ส่วนท้ายเว็บ -->
+        <div class="p-4 bg-white border-t border-gray-150 text-center text-[10px] text-gray-400 tracking-wide uppercase">
+            copyright © 2026 RESCUE WAT MON MAI
+        </div>
+    </div>
+
+    <!-- ================= JAVASCRIPT ระบบดึงข้อมูลจาก GOOGLE SHEETS ================= -->
+    <script>
+        const SPREADSHEET_ID = '1G7WzDKyBF_sz6IY3ers8F8udD4iJp2t4YBvs0VmgN1E'; 
+        const SHEET_TITLE = 'Sheet1'; 
+        const URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${SHEET_TITLE}`;
+
+        let volunteerData = [];
+
+        // ฟังก์ชันแก้ไขและแปลงลิงก์อัตโนมัติรองรับมือถือ
+        function cleanImgUrl(url) {
+            if (!url) return 'https://placehold.co/300x400/ccc/666?text=No+Image';
+            let cleanUrl = url.trim();
+            
+            // ตรวจสอบถ้าเป็นลิงก์หน้าเว็บสั้นจาก ImgBB จะแปลงเป็นลิงก์ตรงให้ทันที
+            if (cleanUrl.includes('ibb.co/') && !cleanUrl.includes('i.ibb.co/')) {
+                let id = cleanUrl.split('ibb.co/')[1];
+                if(id) {
+                    return `https://i.ibb.co/${id}/image.png`;
+                }
+            }
+            return cleanUrl;
+        }
+
+        async function loadDataFromSheets() {
+            try {
+                const response = await fetch(URL);
+                const text = await response.text();
+                const json = JSON.parse(text.substr(47).slice(0, -2));
+                const rows = json.table.rows;
+                
+                volunteerData = rows.map(row => ({
+                    keyword: row.c[0] ? String(row.c[0].v) : '',
+                    name: row.c[1] ? String(row.c[1].v) : '',
+                    id: row.c[2] ? String(row.c[2].v) : '',
+                    location: row.c[3] ? String(row.c[3].v) : '',
+                    role: row.c[4] ? String(row.c[4].v) : '',
+                    expire: row.c[5] ? String(row.c[5].v) : '',
+                    renewStatus: row.c[6] ? String(row.c[6].v) : '',
+                    img: row.c[7] ? cleanImgUrl(String(row.c[7].v)) : 'https://placehold.co/300x400/ccc/666?text=No+Image'
+                }));
+            } catch (error) {
+                console.error("ระบบไม่สามารถดึงข้อมูลจาก Google Sheets ได้:", error);
+            }
+        }
+
+        loadDataFromSheets();
+
+        function searchVolunteer() {
+            const input = document.getElementById('searchInput').value.trim().toLowerCase();
+            const errorMsg = document.getElementById('errorMsg');
+            const loadingMsg = document.getElementById('loadingMsg');
+
+            if (volunteerData.length === 0) {
+                loadingMsg.classList.remove('hidden');
+                return;
+            }
+            loadingMsg.classList.add('hidden');
+
+            const result = volunteerData.find(vol => 
+                vol.keyword.toLowerCase().includes(input) || 
+                vol.name.toLowerCase().includes(input) || 
+                vol.id.toLowerCase().includes(input)
+            );
+
+            if (result && input !== "") {
+                errorMsg.classList.add('hidden');
+                
+                document.getElementById('volImg').src = result.img;
+                document.getElementById('volName').innerText = result.name;
+                document.getElementById('volId').innerText = result.id;
+                document.getElementById('volLocation').innerText = result.location;
+                document.getElementById('volRole').innerText = result.role;
+                document.getElementById('volExpire').innerText = result.expire;
+                document.getElementById('volRenewStatus').innerText = result.renewStatus;
+
+                document.getElementById('searchSection').classList.add('hidden');
+                document.getElementById('profileSection').classList.remove('hidden');
+            } else {
+                errorMsg.classList.remove('hidden');
+            }
+        }
+
+        function backToSearch() {
+            document.getElementById('searchInput').value = "";
+            document.getElementById('searchSection').classList.remove('hidden');
+            document.getElementById('profileSection').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
